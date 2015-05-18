@@ -8,6 +8,18 @@
 #define GPIO_PDIRx	(GPIO_BASE + 0x300)
 #define GPIO_PDORx	(GPIO_BASE + 0x400)
 
+#define WDG_BASE	0x40011000
+
+static void watchdog_disable(void)
+{
+	volatile uint32_t *WDG_CTL = (void *)(WDG_BASE + 0x008);
+	volatile uint32_t *WDG_LCK = (void *)(WDG_BASE + 0xC00);
+
+	*WDG_LCK = 0x1ACCE551;
+	*WDG_LCK = 0xE5331AAE;
+	*WDG_CTL = 0;
+}
+
 int main(void)
 {
 	volatile uint32_t *GPIO_PFR1  = (void *)(GPIO_BASE + 0x004);
@@ -18,6 +30,8 @@ int main(void)
 	volatile uint32_t *GPIO_PDORB = (void *)(GPIO_BASE + 0x42C);
 	uint32_t val;
 	int i;
+
+	watchdog_disable();
 
 	*GPIO_PFRB &= ~(1 << 0x2);
 	*GPIO_PFR1 &= ~((1 << 0x8) | (1 << 0xa));
