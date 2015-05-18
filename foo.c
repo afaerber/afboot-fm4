@@ -8,6 +8,17 @@
 #define GPIO_PDIRx	(GPIO_BASE + 0x300)
 #define GPIO_PDORx	(GPIO_BASE + 0x400)
 
+#define CLOCK_BASE	0x40010000
+
+#define CLOCK_SCM_CTL_MOSCE		(1UL << 1)
+#define CLOCK_SCM_CTL_PLLE		(1UL << 4)
+#define CLOCK_SCM_CTL_RCS_MAIN_PLL	(0x2UL << 5)
+
+#define CLOCK_SCM_STR_MORDY	(1UL << 1)
+#define CLOCK_SCM_STR_PLRDY	(1UL << 4)
+#define CLOCK_SCM_STR_RCM_MAIN_PLL	(0x2UL << 5)
+#define CLOCK_SCM_STR_RCM_MASK		(0x7UL << 5)
+
 #define WDG_BASE	0x40011000
 
 static void watchdog_disable(void)
@@ -18,6 +29,44 @@ static void watchdog_disable(void)
 	*WDG_LCK = 0x1ACCE551;
 	*WDG_LCK = 0xE5331AAE;
 	*WDG_CTL = 0;
+}
+
+static void clock_setup(void)
+{
+	volatile uint32_t *SCM_CTL   = (void *)(CLOCK_BASE + 0x000);
+	volatile uint32_t *SCM_STR   = (void *)(CLOCK_BASE + 0x004);
+	volatile uint32_t *BSC_PSR   = (void *)(CLOCK_BASE + 0x010);
+	volatile uint32_t *APBC0_PSR = (void *)(CLOCK_BASE + 0x014);
+	volatile uint32_t *APBC1_PSR = (void *)(CLOCK_BASE + 0x018);
+	volatile uint32_t *APBC2_PSR = (void *)(CLOCK_BASE + 0x01C);
+	volatile uint32_t *SWC_PSR   = (void *)(CLOCK_BASE + 0x020);
+	volatile uint32_t *TTC_PSR   = (void *)(CLOCK_BASE + 0x028);
+	volatile uint32_t *CSW_TMR   = (void *)(CLOCK_BASE + 0x030);
+	volatile uint32_t *PSW_TMR   = (void *)(CLOCK_BASE + 0x034);
+	volatile uint32_t *PLL_CTL1  = (void *)(CLOCK_BASE + 0x038);
+	volatile uint32_t *PLL_CTL2  = (void *)(CLOCK_BASE + 0x03C);
+
+	*BSC_PSR = 0;
+	*APBC0_PSR = 1;
+	*APBC1_PSR = 0x80;
+	*APBC2_PSR = 0x81;
+	*SWC_PSR = (1 << 7) | (3 << 0);
+	*TTC_PSR = 0;
+
+	*CSW_TMR = (0x5 << 4) | (0xC << 0);
+
+	*SCM_CTL |= CLOCK_SCM_CTL_MOSCE;
+	while (!(*SCM_STR & CLOCK_SCM_STR_MORDY)) {}
+
+	*PSW_TMR = 0;
+	*PLL_CTL1 = 1;
+	*PLL_CTL2 = 0x31;
+
+	*SCM_CTL |= CLOCK_SCM_CTL_PLLE;
+	while (!(*SCM_STR & CLOCK_SCM_STR_PLRDY)) {}
+
+	*SCM_CTL |= CLOCK_SCM_CTL_RCS_MAIN_PLL;
+	while ((*SCM_STR & CLOCK_SCM_STR_RCM_MASK) != CLOCK_SCM_STR_RCM_MAIN_PLL) {}
 }
 
 int main(void)
@@ -32,6 +81,7 @@ int main(void)
 	int i;
 
 	watchdog_disable();
+	clock_setup();
 
 	*GPIO_PFRB &= ~(1 << 0x2);
 	*GPIO_PFR1 &= ~((1 << 0x8) | (1 << 0xa));
