@@ -1,16 +1,21 @@
 #include <stdlib.h>
 #include <stdint.h>
 
-#define GPIO_BASE 0x4006F000
+#define GPIO_BASE	0x4006F000
+#define GPIO_PFRx	(GPIO_BASE + 0x000)
+#define GPIO_PCRx	(GPIO_BASE + 0x100)
+#define GPIO_DDRx	(GPIO_BASE + 0x200)
+#define GPIO_PDIRx	(GPIO_BASE + 0x300)
+#define GPIO_PDORx	(GPIO_BASE + 0x400)
 
 int main(void)
 {
-	volatile uint32_t *GPIO_PFR1  = (void *)(GPIO_BASE + 0 * 16 * 4 + 0x1 * 4);
-	volatile uint32_t *GPIO_PFRB  = (void *)(GPIO_BASE + 0 * 16 * 4 + 0xb * 4);
-	volatile uint32_t *GPIO_DDR1  = (void *)(GPIO_BASE + 2 * 16 * 4 + 0x1 * 4);
-	volatile uint32_t *GPIO_DDRB  = (void *)(GPIO_BASE + 2 * 16 * 4 + 0xb * 4);
-	volatile uint32_t *GPIO_PDOR1 = (void *)(GPIO_BASE + 4 * 16 * 4 + 0x1 * 4);
-	volatile uint32_t *GPIO_PDORB = (void *)(GPIO_BASE + 4 * 16 * 4 + 0xb * 4);
+	volatile uint32_t *GPIO_PFR1  = (void *)(GPIO_BASE + 0x004);
+	volatile uint32_t *GPIO_PFRB  = (void *)(GPIO_BASE + 0x02C);
+	volatile uint32_t *GPIO_DDR1  = (void *)(GPIO_BASE + 0x204);
+	volatile uint32_t *GPIO_DDRB  = (void *)(GPIO_BASE + 0x22C);
+	volatile uint32_t *GPIO_PDOR1 = (void *)(GPIO_BASE + 0x404);
+	volatile uint32_t *GPIO_PDORB = (void *)(GPIO_BASE + 0x42C);
 	uint32_t val;
 	int i;
 
