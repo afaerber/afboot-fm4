@@ -19,8 +19,8 @@ all: test.elf test
 %.o: %.c
 	$(CC) -c $(CFLAGS) $< -o $@
 
-test.elf: $(obj-y) Makefile s6e2cc.lds
-	$(CC) -T s6e2cc.lds $(LDFLAGS) -o test.elf $(obj-y)
+test.elf: $(obj-y) Makefile s6e2ccaj.lds
+	$(CC) -T s6e2ccaj.lds $(LDFLAGS) -o test.elf $(obj-y)
 
 test: test.elf Makefile
 	$(OBJCOPY) -Obinary test.elf test.bin
