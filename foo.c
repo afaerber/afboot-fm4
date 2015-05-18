@@ -25,13 +25,13 @@ int main(void)
 	*GPIO_DDR1 |= (1 << 0x8) | (1 << 0xa);
 
 	while (1) {
-		val = *GPIO_PDOR1;
+		val = *GPIO_PDORB;
 		if (val & (1 << 0x2)) {
-			*GPIO_PDOR1 = val & ~(1 << 0x2);
-			*GPIO_PDORB = val | (1 << 0x8) | (1 << 0xa);
+			*GPIO_PDORB = val & ~(1 << 0x2);
+			*GPIO_PDOR1 |= (1 << 0x8) | (1 << 0xa);
 		} else {
-			*GPIO_PDOR1 = val | (1 << 0x2);
-			*GPIO_PDORB = val & ~((1 << 0x8) | (1 << 0xa));
+			*GPIO_PDORB = val | (1 << 0x2);
+			*GPIO_PDOR1 &= ~((1 << 0x8) | (1 << 0xa));
 		}
 		for (i = 0; i < 10000000; i++) {
 			asm volatile ("nop");
