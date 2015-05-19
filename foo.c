@@ -12,6 +12,9 @@
 
 #define FLASH_FBFCR_BE	(1UL << 0)
 
+#define FLASH_CRTRMM_TRMM_MASK	(0x3ff << 0)
+#define FLASH_CRTRMM_TTRMM_MASK	(0x1f << 16)
+
 #define CLOCK_BASE	0x40010000
 
 #define CLOCK_SCM_CTL_MOSCE		(1UL << 1)
@@ -24,6 +27,8 @@
 #define CLOCK_SCM_STR_RCM_MASK		(0x7UL << 5)
 
 #define WDG_BASE	0x40011000
+
+#define CR_TRIM_BASE	0x4002E000
 
 static void watchdog_disable(void)
 {
@@ -80,6 +85,21 @@ static void clock_setup(void)
 	while ((*SCM_STR & CLOCK_SCM_STR_RCM_MASK) != CLOCK_SCM_STR_RCM_MAIN_PLL) {}
 }
 
+static void trimming_setup(void)
+{
+	volatile uint32_t *FLASH_CRTRMM = (void *)(FLASH_BASE + 0x100);
+	volatile uint32_t *MCR_FTRM = (void *)(CR_TRIM_BASE + 0x004);
+	volatile uint32_t *MCR_TTRM = (void *)(CR_TRIM_BASE + 0x008);
+	volatile uint32_t *MCR_RLR  = (void *)(CR_TRIM_BASE + 0x00C);
+
+	if ((*FLASH_CRTRMM & FLASH_CRTRMM_TRMM_MASK) != FLASH_CRTRMM_TRMM_MASK) {
+		*MCR_RLR = 0x1ACCE554;
+		*MCR_TTRM = (*FLASH_CRTRMM & FLASH_CRTRMM_TTRMM_MASK) >> 16;
+		*MCR_FTRM = *FLASH_CRTRMM & FLASH_CRTRMM_TRMM_MASK;
+		*MCR_RLR = 0x00000000;
+	}
+}
+
 int main(void)
 {
 	volatile uint32_t *GPIO_PFR1  = (void *)(GPIO_BASE + 0x004);
@@ -94,6 +114,7 @@ int main(void)
 	watchdog_disable();
 	trace_buffer_enable();
 	clock_setup();
+	trimming_setup();
 
 	*GPIO_PFRB &= ~(1 << 0x2);
 	*GPIO_PFR1 &= ~((1 << 0x8) | (1 << 0xa));
