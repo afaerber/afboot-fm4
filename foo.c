@@ -116,19 +116,19 @@ int main(void)
 	clock_setup();
 	trimming_setup();
 
-	*GPIO_PFRB &= ~(1 << 0x2);
-	*GPIO_PFR1 &= ~((1 << 0x8) | (1 << 0xa));
-	*GPIO_DDRB |= 1 << 0x2;
-	*GPIO_DDR1 |= (1 << 0x8) | (1 << 0xa);
+	*GPIO_PFRB &= ~(1UL << 0x2);
+	*GPIO_PFR1 &= ~((1UL << 0x8) | (1UL << 0xa));
+	*GPIO_DDRB |= 1UL << 0x2;
+	*GPIO_DDR1 |= (1UL << 0x8) | (1UL << 0xa);
 
 	while (1) {
 		val = *GPIO_PDORB;
-		if (val & (1 << 0x2)) {
-			*GPIO_PDORB = val & ~(1 << 0x2);
-			*GPIO_PDOR1 |= (1 << 0x8) | (1 << 0xa);
+		if (val & (1UL << 0x2)) {
+			*GPIO_PDORB = val & ~(1UL << 0x2);
+			*GPIO_PDOR1 |= (1UL << 0x8) | (1UL << 0xa);
 		} else {
-			*GPIO_PDORB = val | (1 << 0x2);
-			*GPIO_PDOR1 &= ~((1 << 0x8) | (1 << 0xa));
+			*GPIO_PDORB = val | (1UL << 0x2);
+			*GPIO_PDOR1 &= ~((1UL << 0x8) | (1UL << 0xa));
 		}
 		for (i = 0; i < 10000000; i++) {
 			asm volatile ("nop");
