@@ -102,13 +102,16 @@ static void trimming_setup(void)
 
 int main(void)
 {
-	volatile uint32_t *GPIO_PFR1  = (void *)(GPIO_BASE + 0x004);
-	volatile uint32_t *GPIO_PFRB  = (void *)(GPIO_BASE + 0x02C);
-	volatile uint32_t *GPIO_DDR1  = (void *)(GPIO_BASE + 0x204);
-	volatile uint32_t *GPIO_DDRB  = (void *)(GPIO_BASE + 0x22C);
-	volatile uint32_t *GPIO_PDOR1 = (void *)(GPIO_BASE + 0x404);
-	volatile uint32_t *GPIO_PDORB = (void *)(GPIO_BASE + 0x42C);
-	uint32_t val;
+	volatile uint8_t *GPIO_PFR1_8  = (void *)(0x42DE00A0);
+	volatile uint8_t *GPIO_PFR1_A  = (void *)(0x42DE00A8);
+	volatile uint8_t *GPIO_PFRB_2  = (void *)(0x42DE0588);
+	volatile uint8_t *GPIO_DDR1_8  = (void *)(0x42DE40A0);
+	volatile uint8_t *GPIO_DDR1_A  = (void *)(0x42DE40A8);
+	volatile uint8_t *GPIO_DDRB_2  = (void *)(0x42DE4588);
+	volatile uint8_t *GPIO_PDOR1_8 = (void *)(0x42DE80A0);
+	volatile uint8_t *GPIO_PDOR1_A = (void *)(0x42DE80A8);
+	volatile uint8_t *GPIO_PDORB_2 = (void *)(0x42DE8588);
+	uint8_t val;
 	int i;
 
 	watchdog_disable();
@@ -116,19 +119,31 @@ int main(void)
 	clock_setup();
 	trimming_setup();
 
-	*GPIO_PFRB &= ~(1UL << 0x2);
-	*GPIO_PFR1 &= ~((1UL << 0x8) | (1UL << 0xa));
-	*GPIO_DDRB |= 1UL << 0x2;
-	*GPIO_DDR1 |= (1UL << 0x8) | (1UL << 0xa);
+	*GPIO_PDORB_2 = 0;
+	*GPIO_DDRB_2 = 1;
+	*GPIO_PFRB_2 = 0;
+	*GPIO_PDORB_2 = 0;
+
+	*GPIO_PDOR1_8 = 0;
+	*GPIO_DDR1_8 = 1;
+	*GPIO_PFR1_8 = 0;
+	*GPIO_PDOR1_8 = 1;
+
+	*GPIO_PDOR1_A = 0;
+	*GPIO_DDR1_A = 1;
+	*GPIO_PFR1_A = 0;
+	*GPIO_PDOR1_A = 0;
 
 	while (1) {
-		val = *GPIO_PDORB;
-		if (val & (1UL << 0x2)) {
-			*GPIO_PDORB = val & ~(1UL << 0x2);
-			*GPIO_PDOR1 |= (1UL << 0x8) | (1UL << 0xa);
+		val = *GPIO_PDORB_2;
+		if (val) {
+			*GPIO_PDORB_2 = 0;
+			*GPIO_PDOR1_8 = 1;
+			*GPIO_PDOR1_A = 1;
 		} else {
-			*GPIO_PDORB = val | (1UL << 0x2);
-			*GPIO_PDOR1 &= ~((1UL << 0x8) | (1UL << 0xa));
+			*GPIO_PDORB_2 = 1;
+			*GPIO_PDOR1_8 = 0;
+			*GPIO_PDOR1_A = 0;
 		}
 		for (i = 0; i < 10000000; i++) {
 			asm volatile ("nop");
