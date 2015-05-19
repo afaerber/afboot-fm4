@@ -111,6 +111,7 @@ int main(void)
 	volatile uint8_t *GPIO_PDOR1_8 = (void *)(0x42DE80A0);
 	volatile uint8_t *GPIO_PDOR1_A = (void *)(0x42DE80A8);
 	volatile uint8_t *GPIO_PDORB_2 = (void *)(0x42DE8588);
+	volatile uint32_t *GPIO_ADE = (void *)(GPIO_BASE + 0x500);
 	uint8_t val;
 	int i;
 
@@ -133,6 +134,8 @@ int main(void)
 	*GPIO_DDR1_A = 1;
 	*GPIO_PFR1_A = 0;
 	*GPIO_PDOR1_A = 0;
+
+	*GPIO_ADE &= ~((1UL << 18) | (1UL << 10) | (1UL << 8));
 
 	while (1) {
 		val = *GPIO_PDORB_2;
