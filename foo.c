@@ -8,6 +8,10 @@
 #define GPIO_PDIRx	(GPIO_BASE + 0x300)
 #define GPIO_PDORx	(GPIO_BASE + 0x400)
 
+#define FLASH_BASE	0x40000000
+
+#define FLASH_FBFCR_BE	(1UL << 0)
+
 #define CLOCK_BASE	0x40010000
 
 #define CLOCK_SCM_CTL_MOSCE		(1UL << 1)
@@ -29,6 +33,13 @@ static void watchdog_disable(void)
 	*WDG_LCK = 0x1ACCE551;
 	*WDG_LCK = 0xE5331AAE;
 	*WDG_CTL = 0;
+}
+
+static void trace_buffer_enable(void)
+{
+	volatile uint32_t *FBFCR = (void *)(FLASH_BASE + 0x014);
+
+	*FBFCR = FLASH_FBFCR_BE;
 }
 
 static void clock_setup(void)
@@ -81,6 +92,7 @@ int main(void)
 	int i;
 
 	watchdog_disable();
+	trace_buffer_enable();
 	clock_setup();
 
 	*GPIO_PFRB &= ~(1 << 0x2);
