@@ -1,12 +1,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 
-#define GPIO_BASE	0x4006F000
-#define GPIO_PFRx	(GPIO_BASE + 0x000)
-#define GPIO_PCRx	(GPIO_BASE + 0x100)
-#define GPIO_DDRx	(GPIO_BASE + 0x200)
-#define GPIO_PDIRx	(GPIO_BASE + 0x300)
-#define GPIO_PDORx	(GPIO_BASE + 0x400)
+#define PERIPH_BASE	0x40000000
 
 #define FLASH_BASE	0x40000000
 
@@ -29,6 +24,16 @@
 #define WDG_BASE	0x40011000
 
 #define CR_TRIM_BASE	0x4002E000
+
+#define GPIO_BASE	0x4006F000
+#define GPIO_PFRx	(GPIO_BASE + 0x000)
+#define GPIO_PCRx	(GPIO_BASE + 0x100)
+#define GPIO_DDRx	(GPIO_BASE + 0x200)
+#define GPIO_PDIRx	(GPIO_BASE + 0x300)
+#define GPIO_PDORx	(GPIO_BASE + 0x400)
+#define GPIO_EPFRx	(GPIO_BASE + 0x600)
+
+#define PERIPH_BITBAND(_addr) (0x42000000 + (_addr - PERIPH_BASE) * 32)
 
 static void watchdog_disable(void)
 {
@@ -100,18 +105,43 @@ static void trimming_setup(void)
 	}
 }
 
+#define GPIO_PFR(_bank, _pin)	(PERIPH_BITBAND(GPIO_PFRx)  + _bank * 32 * 4 + _pin * 4)
+#define GPIO_DDR(_bank, _pin)	(PERIPH_BITBAND(GPIO_DDRx)  + _bank * 32 * 4 + _pin * 4)
+#define GPIO_PDOR(_bank, _pin)	(PERIPH_BITBAND(GPIO_PDORx) + _bank * 32 * 4 + _pin * 4)
+#define GPIO_ADE(_func) (PERIPH_BITBAND(GPIO_BASE + 0x500) + _func * 4)
+
+static inline void gpio_set_pfr(int bank, int pin, uint8_t value)
+{
+	volatile uint8_t *reg  = (void *)GPIO_PFR(bank, pin);
+	*reg = value;
+}
+
+static inline void gpio_set_ddr(int bank, int pin, uint8_t value)
+{
+	volatile uint8_t *reg  = (void *)GPIO_DDR(bank, pin);
+	*reg = value;
+}
+
+static inline void gpio_set_pdor(int bank, int pin, uint8_t value)
+{
+	volatile uint8_t *reg  = (void *)GPIO_PDOR(bank, pin);
+	*reg = value;
+}
+
+static inline uint8_t gpio_get_pdor(int bank, int pin)
+{
+	volatile uint8_t *reg  = (void *)GPIO_PDOR(bank, pin);
+	return *reg;
+}
+
+static inline void gpio_set_ade(int func, uint8_t value)
+{
+	volatile uint8_t *reg  = (void *)GPIO_ADE(func);
+	*reg = value;
+}
+
 int main(void)
 {
-	volatile uint8_t *GPIO_PFR1_8  = (void *)(0x42DE00A0);
-	volatile uint8_t *GPIO_PFR1_A  = (void *)(0x42DE00A8);
-	volatile uint8_t *GPIO_PFRB_2  = (void *)(0x42DE0588);
-	volatile uint8_t *GPIO_DDR1_8  = (void *)(0x42DE40A0);
-	volatile uint8_t *GPIO_DDR1_A  = (void *)(0x42DE40A8);
-	volatile uint8_t *GPIO_DDRB_2  = (void *)(0x42DE4588);
-	volatile uint8_t *GPIO_PDOR1_8 = (void *)(0x42DE80A0);
-	volatile uint8_t *GPIO_PDOR1_A = (void *)(0x42DE80A8);
-	volatile uint8_t *GPIO_PDORB_2 = (void *)(0x42DE8588);
-	volatile uint32_t *GPIO_ADE = (void *)(GPIO_BASE + 0x500);
 	uint8_t val;
 	int i;
 
@@ -120,33 +150,34 @@ int main(void)
 	clock_setup();
 	trimming_setup();
 
-	*GPIO_PDORB_2 = 0;
-	*GPIO_DDRB_2 = 1;
-	*GPIO_PFRB_2 = 0;
-	*GPIO_PDORB_2 = 0;
+	gpio_set_pdor(0xB, 0x2, 0);
+	gpio_set_ddr(0xB, 0x2, 1);
+	gpio_set_pfr(0xB, 0x2, 0);
+	gpio_set_ade(18, 0);
+	gpio_set_pdor(0xB, 0x2, 0);
 
-	*GPIO_PDOR1_8 = 0;
-	*GPIO_DDR1_8 = 1;
-	*GPIO_PFR1_8 = 0;
-	*GPIO_PDOR1_8 = 1;
+	gpio_set_pdor(0x1, 0x8, 0);
+	gpio_set_ddr(0x1, 0x8, 1);
+	gpio_set_pfr(0x1, 0x8, 0);
+	gpio_set_ade(8, 0);
+	gpio_set_pdor(0x1, 0x8, 1);
 
-	*GPIO_PDOR1_A = 0;
-	*GPIO_DDR1_A = 1;
-	*GPIO_PFR1_A = 0;
-	*GPIO_PDOR1_A = 0;
-
-	*GPIO_ADE &= ~((1UL << 18) | (1UL << 10) | (1UL << 8));
+	gpio_set_pdor(0x1, 0xA, 0);
+	gpio_set_ddr(0x1, 0xA, 1);
+	gpio_set_pfr(0x1, 0xA, 0);
+	gpio_set_ade(10, 0);
+	gpio_set_pdor(0x1, 0xA, 0);
 
 	while (1) {
-		val = *GPIO_PDORB_2;
+		val = gpio_get_pdor(0xB, 0x2);
 		if (val) {
-			*GPIO_PDORB_2 = 0;
-			*GPIO_PDOR1_8 = 1;
-			*GPIO_PDOR1_A = 1;
+			gpio_set_pdor(0xB, 0x2, 0);
+			gpio_set_pdor(0x1, 0x8, 1);
+			gpio_set_pdor(0x1, 0xA, 1);
 		} else {
-			*GPIO_PDORB_2 = 1;
-			*GPIO_PDOR1_8 = 0;
-			*GPIO_PDOR1_A = 0;
+			gpio_set_pdor(0xB, 0x2, 1);
+			gpio_set_pdor(0x1, 0x8, 0);
+			gpio_set_pdor(0x1, 0xA, 0);
 		}
 		for (i = 0; i < 10000000; i++) {
 			asm volatile ("nop");
