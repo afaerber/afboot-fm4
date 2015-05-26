@@ -217,8 +217,91 @@ void uart_putch(char ch)
 	*TDR = (uint8_t)ch;
 }
 
+static inline void gpio_set_epfr(int regnr, int bit, uint8_t val)
+{
+	volatile uint8_t *reg = (void *)(PERIPH_BITBAND(GPIO_EPFRx + regnr * 4) + bit * 4);
+	*reg = val;
+}
+
+#define EXTIF_BASE	0x4003F000
+#define EXTIF_MODEx	(EXTIF_BASE + 0x000)
+#define EXTIF_TIMx	(EXTIF_BASE + 0x020)
+#define EXTIF_AREAx	(EXTIF_BASE + 0x040)
+#define EXTIF_ATIMx	(EXTIF_BASE + 0x060)
+
+static void ebif_setup(void)
+{
+	volatile uint8_t *CGT_CKEN0_EXBCK  = (void *)(PERIPH_BITBAND(0x4003C100 + 0x0) + 26 * 4);
+	volatile uint8_t *CGT_MRST0_EXBRST = (void *)(PERIPH_BITBAND(0x4003C100 + 0x4) + 26 * 4);
+	volatile uint32_t *MODE0 = (void *)(EXTIF_MODEx + 0 * 4);
+	volatile uint32_t *TIM0 = (void *)(EXTIF_TIMx + 0 * 4);
+	volatile uint32_t *AREA0 = (void *)(EXTIF_AREAx + 0 * 4);
+	volatile uint32_t *ATIM0 = (void *)(EXTIF_ATIMx + 0 * 4);
+	volatile uint32_t *DCLKR = (void *)(EXTIF_BASE + 0x300);
+	volatile uint32_t *AMODE = (void *)(EXTIF_BASE + 0x310);
+	int i;
+
+	for (i = 3; i <= 5; i++) {
+		gpio_set_epfr(10, i, 1);
+	}
+	for (i = 17; i <= 27; i++) {
+		gpio_set_epfr(10, i, 1);
+	}
+	for (i = 1; i <= 24; i++) {
+		gpio_set_epfr(11, i, 1);
+	}
+
+	// pins 21-22
+	gpio_set_pfr(0x0, 0x8, 1);
+	gpio_set_pfr(0x0, 0x9, 1);
+
+	// pins 116-117
+	gpio_set_pfr(0x1, 0xE, 1);
+	gpio_set_pfr(0x1, 0xF, 1);
+
+	// pins 118-124
+	for (i = 0x4; i <= 0xA; i++) {
+		gpio_set_pfr(0x2, i, 1);
+	}
+
+	// pins 39-40
+	gpio_set_pfr(0x3, 0xD, 1);
+	gpio_set_pfr(0x3, 0xE, 1);
+
+	// pins 169-170
+	gpio_set_pfr(0x6, 0x2, 1);
+	gpio_set_pfr(0x6, 0x3, 1);
+
+	// pins 67-69, 76-81
+	for (i = 0x2; i <= 0xA; i++) {
+		gpio_set_pfr(0x7, i, 1);
+	}
+	// pin 56
+	gpio_set_pfr(0x7, 0xE, 1);
+
+	// pins 2-9, 13-20
+	for (i = 0x0; i <= 0xF; i++) {
+		gpio_set_pfr(0xA, i, 1);
+	}
+
+	*CGT_CKEN0_EXBCK = 0;
+	*CGT_MRST0_EXBRST = 1;
+	*CGT_MRST0_EXBRST = 0;
+	*CGT_CKEN0_EXBCK = 1;
+
+	*MODE0 = (1 << 11) | (1 << 7) | (1 << 2) | (1 << 0); // MPXDOFF, SHRTDOUT, RBMON, 16-bit
+	*DCLKR = (1 << 4) | (3 << 0);
+	*TIM0 = ((1 - 1) << 28) | ((4 - 1) << 24) | ((1 - 1) << 20) | ((5 - 1) << 16) |
+	        ((1 - 1) << 12) | ((1 - 1) << 8) | (0 << 4) | ((4 - 1) << 0);
+	*AREA0 = (1 << 16) | (0x60000000 >> 20);
+	*ATIM0 = ((1 - 1) << 8) | (0 << 4) | ((1 - 1) << 0);
+	*AMODE = 0;
+}
+
 int main(void)
 {
+	//volatile uint32_t *psram32 = (void *)0x60000000;
+	//volatile uint8_t *psram8   = (void *)0x60000000;
 	uint8_t val;
 	int i;
 
@@ -247,6 +330,14 @@ int main(void)
 
 	uart_setup();
 	uart_putch('x');
+
+	ebif_setup();
+	/**psram32 = 0xdeadbeef;
+	for (i = 0; i < 4; i++) {
+		uint8_t val = psram8[i];
+		uart_putch(((val >> 4) > 9) ? 'A' + (val >> 4) - 0xA : '0' + (val >> 4));
+		uart_putch(((val & 0xf) > 9) ? 'A' + (val & 0xf) - 0xA : '0' + (val & 0xf));
+	}*/
 
 	while (1) {
 		val = gpio_get_pdor(0xB, 0x2);
