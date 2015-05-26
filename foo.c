@@ -52,6 +52,8 @@ static void trace_buffer_enable(void)
 	*FBFCR = FLASH_FBFCR_BE;
 }
 
+//unsigned long masterclk;
+
 static void clock_setup(void)
 {
 	volatile uint32_t *SCM_CTL   = (void *)(CLOCK_BASE + 0x000);
@@ -66,6 +68,7 @@ static void clock_setup(void)
 	volatile uint32_t *PSW_TMR   = (void *)(CLOCK_BASE + 0x034);
 	volatile uint32_t *PLL_CTL1  = (void *)(CLOCK_BASE + 0x038);
 	volatile uint32_t *PLL_CTL2  = (void *)(CLOCK_BASE + 0x03C);
+	//const unsigned long clkmo = 4000000UL;
 
 	*BSC_PSR = 0;
 	*APBC0_PSR = 1;
@@ -88,6 +91,10 @@ static void clock_setup(void)
 
 	*SCM_CTL |= CLOCK_SCM_CTL_RCS_MAIN_PLL;
 	while ((*SCM_STR & CLOCK_SCM_STR_RCM_MASK) != CLOCK_SCM_STR_RCM_MAIN_PLL) {}
+
+	//masterclk = clkmo * ((*PLL_CTL2 & 0x3f) + 1);
+	//masterclk /= (((*PLL_CTL1 >> 4) & 0xf) + 1);
+	// BSC_PSR == 0
 }
 
 static void trimming_setup(void)
@@ -140,6 +147,76 @@ static inline void gpio_set_ade(int func, uint8_t value)
 	*reg = value;
 }
 
+#define MFS_BASE(_nr) (0x40038000 + _nr * 0x100)
+
+static void uart_setup(void)
+{
+	volatile uint32_t *GPIO_EPFR07 = (void *)(GPIO_EPFRx + 7 * 4);
+	volatile uint8_t *SMR  = (void *)(MFS_BASE(0) + 0x00);
+	volatile uint8_t *SCR  = (void *)(MFS_BASE(0) + 0x01);
+	volatile uint8_t *SCR_UPCL = (void *)(PERIPH_BITBAND(MFS_BASE(0) + 0x00) + 15 * 4);
+	volatile uint8_t *SCR_RXE  = (void *)(PERIPH_BITBAND(MFS_BASE(0) + 0x00) +  9 * 4);
+	volatile uint8_t *SCR_TXE  = (void *)(PERIPH_BITBAND(MFS_BASE(0) + 0x00) +  8 * 4);
+	volatile uint8_t *ESCR = (void *)(MFS_BASE(0) + 0x04);
+	volatile uint8_t *SSR  = (void *)(MFS_BASE(0) + 0x05);
+	volatile uint8_t *SSR_REC  = (void *)(PERIPH_BITBAND(MFS_BASE(0) + 0x04) + 15 * 4);
+	volatile uint16_t *BGR = (void *)(MFS_BASE(0) + 0x0C);
+	volatile uint8_t *FCR0 = (void *)(MFS_BASE(0) + 0x14);
+	volatile uint8_t *FCR1 = (void *)(MFS_BASE(0) + 0x15);
+	uint32_t val32;
+
+	gpio_set_pfr(0x2, 0x1, 1);
+
+	gpio_set_ade(31, 0);
+	gpio_set_pfr(0x2, 0x2, 1);
+
+	val32 = *GPIO_EPFR07;
+	val32 &= ~((3 << 6) | (3 << 4));
+	val32 |= (1 << 6) | (0 << 4);
+	*GPIO_EPFR07 = val32;
+
+	// deinit
+	*SCR_TXE = 0;
+	*SCR_RXE = 0;
+	*BGR = 0;
+	*SMR = 0;
+	*SCR = 0;
+	*SSR_REC = 1;
+	*SSR = 0;
+	*ESCR = 0;
+	*FCR0 = 0;
+	*FCR1 = 0;
+	*SCR_UPCL = 1;
+
+	*SMR = 0;
+	*SCR = 0;
+	*SCR_UPCL = 1;
+
+	*SMR = (0 << 5) | (0 << 2); // mode 0, lsb
+	*SMR = (0 << 5) | (0 << 3) | (0 << 2) | (1 << 0); // 1 stop bit, output enable
+	*SCR = 0;
+	*ESCR = 0;
+	*SSR_REC = 1;
+	//val32 = masterclk / 2;
+	//val32 /= 115200;
+	//val32 -= 1;
+	//*BGR = val32 & 0x7fff;
+	*BGR = 867 & 0x7fff;
+	*SCR_TXE = 1;
+	//*SCR_RXE = 1;
+}
+
+void uart_putch(char ch);
+
+void uart_putch(char ch)
+{
+	volatile uint8_t *SSR_TDRE = (void *)(PERIPH_BITBAND(MFS_BASE(0) + 0x04) +  9 * 4);
+	volatile uint16_t *TDR = (void *)(MFS_BASE(0) + 0x08);
+
+	while (*SSR_TDRE == 0) {}
+	*TDR = (uint8_t)ch;
+}
+
 int main(void)
 {
 	uint8_t val;
@@ -167,6 +244,9 @@ int main(void)
 	gpio_set_pfr(0x1, 0xA, 0);
 	gpio_set_ade(10, 0);
 	gpio_set_pdor(0x1, 0xA, 0);
+
+	uart_setup();
+	uart_putch('x');
 
 	while (1) {
 		val = gpio_get_pdor(0xB, 0x2);
