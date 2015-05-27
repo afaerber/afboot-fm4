@@ -298,6 +298,14 @@ static void ebif_setup(void)
 	*AMODE = 0;
 }
 
+static void start_kernel(void)
+{
+	void (*kernel)(uint32_t reserved, uint32_t mach, uint32_t dt)
+		= (void (*)(uint32_t, uint32_t, uint32_t))(0x00004000 | 1);
+
+	kernel(0, ~0UL, 0x00002000);
+}
+
 int main(void)
 {
 	//volatile uint32_t *psram32 = (void *)0x60000000;
@@ -339,7 +347,10 @@ int main(void)
 		uart_putch(((val & 0xf) > 9) ? 'A' + (val & 0xf) - 0xA : '0' + (val & 0xf));
 	}*/
 
-	while (1) {
+	gpio_set_pdor(0x1, 0xA, 1);
+	start_kernel();
+
+	while (0) {
 		val = gpio_get_pdor(0xB, 0x2);
 		if (val) {
 			gpio_set_pdor(0xB, 0x2, 0);
