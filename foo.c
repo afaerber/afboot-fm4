@@ -241,12 +241,23 @@ static void ebif_setup(void)
 	volatile uint32_t *AMODE = (void *)(EXTIF_BASE + 0x310);
 	int i;
 
+	// MAD10..MAD11
+	gpio_set_ade(14, 0);
+	gpio_set_ade(15, 0);
+	// MAD12..MAD15, MAD17..MAD18
+	for (i = 24; i <= 29; i++) {
+		gpio_set_ade(i, 0);
+	}
+
+	// MWEX, MDQM1 and MDQM0, MOEX
 	for (i = 3; i <= 5; i++) {
 		gpio_set_epfr(10, i, 1);
 	}
-	for (i = 17; i <= 27; i++) {
+	// MAD08..MAD20
+	for (i = 15; i <= 27; i++) {
 		gpio_set_epfr(10, i, 1);
 	}
+	// MCSX0, MAD01..MAD07, MADATA00..MADATA15
 	for (i = 1; i <= 24; i++) {
 		gpio_set_epfr(11, i, 1);
 	}
@@ -293,7 +304,7 @@ static void ebif_setup(void)
 	*DCLKR = (1 << 4) | (3 << 0);
 	*TIM0 = ((1 - 1) << 28) | ((4 - 1) << 24) | ((1 - 1) << 20) | ((5 - 1) << 16) |
 	        ((1 - 1) << 12) | ((1 - 1) << 8) | (0 << 4) | ((4 - 1) << 0);
-	*AREA0 = (1 << 16) | (0x60000000 >> 20);
+	*AREA0 = (1 << 16) | (((0x60000000 >> 20) & 0xff) << 0);
 	*ATIM0 = ((1 - 1) << 8) | (0 << 4) | ((1 - 1) << 0);
 	*AMODE = 0;
 }
@@ -308,7 +319,7 @@ static void start_kernel(void)
 
 int main(void)
 {
-	//volatile uint32_t *psram32 = (void *)0x60000000;
+	volatile uint32_t *psram32 = (void *)0x60000000;
 	//volatile uint8_t *psram8   = (void *)0x60000000;
 	uint8_t val;
 	int i;
@@ -346,6 +357,9 @@ int main(void)
 		uart_putch(((val >> 4) > 9) ? 'A' + (val >> 4) - 0xA : '0' + (val >> 4));
 		uart_putch(((val & 0xf) > 9) ? 'A' + (val & 0xf) - 0xA : '0' + (val & 0xf));
 	}*/
+	for (i = 0; i < 0x00200000 / sizeof(*psram32); i++) {
+		psram32[i] = 0;
+	}
 
 	gpio_set_pdor(0x1, 0xA, 1);
 	start_kernel();
