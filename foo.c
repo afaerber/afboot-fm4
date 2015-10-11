@@ -309,6 +309,32 @@ static void ebif_setup(void)
 	*AMODE = 0;
 }
 
+static void ethernet_setup(void)
+{
+	int i;
+
+	for (i = 0; i <= 10; i++) {
+		gpio_set_pfr(0xC, i, 1);
+	}
+	for (i = 12; i <= 15; i++) {
+		gpio_set_pfr(0xC, i, 1);
+	}
+	for (i = 0; i <= 2; i++) {
+		gpio_set_pfr(0xD, i, 1);
+	}
+
+	for (i = 18; i <= 28; i++) {
+		gpio_set_epfr(14, i, 1);
+	}
+	gpio_set_epfr(14, 29, 0);
+
+	gpio_set_pfr(0x6, 0xA, 0);
+	gpio_set_ddr(0x6, 0xA, 1);
+
+	gpio_set_pfr(0x6, 0xE, 0);
+	gpio_set_ddr(0x6, 0xE, 1);
+}
+
 static void start_kernel(void)
 {
 	void (*kernel)(uint32_t reserved, uint32_t mach, uint32_t dt)
@@ -361,6 +387,7 @@ int main(void)
 		psram32[i] = 0;
 	}
 
+	ethernet_setup();
 	gpio_set_pdor(0x1, 0xA, 1);
 	start_kernel();
 
