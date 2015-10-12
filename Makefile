@@ -12,21 +12,28 @@ CFLAGS += -ffunction-sections -fdata-sections
 CFLAGS += -Os -std=gnu99 -Wall
 LDFLAGS := -nostartfiles -Wl,--gc-sections
 
-obj-y += foo.o
-
-all: test.elf test
+all: s6e2cc mb9bf
 
 %.o: %.c
 	$(CC) -c $(CFLAGS) $< -o $@
 
-test.elf: $(obj-y) Makefile s6e2ccaj.lds
-	$(CC) -T s6e2ccaj.lds $(LDFLAGS) -o test.elf $(obj-y)
+s6e2cc.elf: foo.c Makefile s6e2ccaj.lds
+	$(CC) $(CFLAGS) -DS6E2CC -T s6e2ccaj.lds $(LDFLAGS) -o $@ foo.c
 
-test: test.elf Makefile
-	$(OBJCOPY) -Obinary test.elf test.bin
-	$(OBJCOPY) -Osrec test.elf test.srec
-	$(OBJDUMP) -S test.elf > test.lst
-	$(SIZE) test.elf
+s6e2cc: s6e2cc.elf Makefile
+	$(OBJCOPY) -Obinary s6e2cc.elf s6e2cc.bin
+	$(OBJCOPY) -Osrec s6e2cc.elf s6e2cc.srec
+	$(OBJDUMP) -S s6e2cc.elf > s6e2cc.lst
+	$(SIZE) s6e2cc.elf
+
+mb9bf.elf: foo.c Makefile mb9bf568r.lds
+	$(CC) $(CFLAGS) -DMB9BF -T mb9bf568r.lds $(LDFLAGS) -o $@ foo.c
+
+mb9bf: mb9bf.elf Makefile
+	$(OBJCOPY) -Obinary mb9bf.elf mb9bf.bin
+	$(OBJCOPY) -Osrec mb9bf.elf mb9bf.srec
+	$(OBJDUMP) -S mb9bf.elf > mb9bf.lst
+	$(SIZE) mb9bf.elf
 
 clean:
 	@rm -f *.o *.elf *.bin *.srec *.lst

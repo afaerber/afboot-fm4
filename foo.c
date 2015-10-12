@@ -52,7 +52,7 @@ static void trace_buffer_enable(void)
 	*FBFCR = FLASH_FBFCR_BE;
 }
 
-//unsigned long masterclk;
+unsigned long masterclk;
 
 static void clock_setup(void)
 {
@@ -68,7 +68,7 @@ static void clock_setup(void)
 	volatile uint32_t *PSW_TMR   = (void *)(CLOCK_BASE + 0x034);
 	volatile uint32_t *PLL_CTL1  = (void *)(CLOCK_BASE + 0x038);
 	volatile uint32_t *PLL_CTL2  = (void *)(CLOCK_BASE + 0x03C);
-	//const unsigned long clkmo = 4000000UL;
+	const unsigned long clkmo = 4000000UL;
 
 	*BSC_PSR = 0;
 	*APBC0_PSR = 1;
@@ -84,7 +84,11 @@ static void clock_setup(void)
 
 	*PSW_TMR = 0;
 	*PLL_CTL1 = 1;
+#ifdef S6E2CC
 	*PLL_CTL2 = 0x31;
+#elif defined(MB9BF)
+	*PLL_CTL2 = 0x27;
+#endif
 
 	*SCM_CTL |= CLOCK_SCM_CTL_PLLE;
 	while (!(*SCM_STR & CLOCK_SCM_STR_PLRDY)) {}
@@ -92,8 +96,8 @@ static void clock_setup(void)
 	*SCM_CTL |= CLOCK_SCM_CTL_RCS_MAIN_PLL;
 	while ((*SCM_STR & CLOCK_SCM_STR_RCM_MASK) != CLOCK_SCM_STR_RCM_MAIN_PLL) {}
 
-	//masterclk = clkmo * ((*PLL_CTL2 & 0x3f) + 1);
-	//masterclk /= (((*PLL_CTL1 >> 4) & 0xf) + 1);
+	masterclk = clkmo * ((*PLL_CTL2 & 0x3f) + 1);
+	masterclk /= (((*PLL_CTL1 >> 4) & 0xf) + 1);
 	// BSC_PSR == 0
 }
 
@@ -165,9 +169,16 @@ static void uart_setup(void)
 	volatile uint8_t *FCR1 = (void *)(MFS_BASE(0) + 0x15);
 	uint32_t val32;
 
+#ifdef MB9BF
+	gpio_set_ade(17, 0);
+#endif
 	gpio_set_pfr(0x2, 0x1, 1);
 
+#ifdef S6E2CC
 	gpio_set_ade(31, 0);
+#elif defined(MB9BF)
+	gpio_set_ade(16, 0);
+#endif
 	gpio_set_pfr(0x2, 0x2, 1);
 
 	val32 = *GPIO_EPFR07;
@@ -197,11 +208,15 @@ static void uart_setup(void)
 	*SCR = 0;
 	*ESCR = 0;
 	*SSR_REC = 1;
-	//val32 = masterclk / 2;
-	//val32 /= 115200;
-	//val32 -= 1;
-	//*BGR = val32 & 0x7fff;
-	*BGR = 867 & 0x7fff;
+	val32 = masterclk / 2;
+	val32 /= 115200;
+	val32 -= 1;
+	*BGR = val32 & 0x7fff;
+#ifdef S6E2CC
+	//*BGR = 867 & 0x7fff;
+#elif defined(MB9BF)
+	//*BGR = (80000000UL / 115200UL - 1) & 0x7fff;
+#endif
 	*SCR_TXE = 1;
 	//*SCR_RXE = 1;
 }
@@ -229,6 +244,7 @@ static inline void gpio_set_epfr(int regnr, int bit, uint8_t val)
 #define EXTIF_AREAx	(EXTIF_BASE + 0x040)
 #define EXTIF_ATIMx	(EXTIF_BASE + 0x060)
 
+#ifdef S6E2CC
 static void ebif_setup(void)
 {
 	volatile uint8_t *CGT_CKEN0_EXBCK  = (void *)(PERIPH_BITBAND(0x4003C100 + 0x0) + 26 * 4);
@@ -342,11 +358,14 @@ static void start_kernel(void)
 
 	kernel(0, ~0UL, 0x00002000);
 }
+#endif
 
 int main(void)
 {
+#ifdef S6E2CC
 	volatile uint32_t *psram32 = (void *)0x60000000;
 	//volatile uint8_t *psram8   = (void *)0x60000000;
+#endif
 	uint8_t val;
 	int i;
 
@@ -355,6 +374,7 @@ int main(void)
 	clock_setup();
 	trimming_setup();
 
+#ifdef S6E2CC
 	gpio_set_pdor(0xB, 0x2, 0);
 	gpio_set_ddr(0xB, 0x2, 1);
 	gpio_set_pfr(0xB, 0x2, 0);
@@ -372,10 +392,21 @@ int main(void)
 	gpio_set_pfr(0x1, 0xA, 0);
 	gpio_set_ade(10, 0);
 	gpio_set_pdor(0x1, 0xA, 0);
+#elif defined(MB9BF)
+	gpio_set_pdor(0x2, 0x7, 0);
+	gpio_set_ddr(0x2, 0x7, 1);
+
+	gpio_set_pdor(0x3, 0x8, 0);
+	gpio_set_ddr(0x3, 0x8, 1);
+
+	gpio_set_pdor(0xE, 0x0, 0);
+	gpio_set_ddr(0xE, 0x0, 1);
+#endif
 
 	uart_setup();
 	uart_putch('x');
 
+#ifdef S6E2CC
 	ebif_setup();
 	/**psram32 = 0xdeadbeef;
 	for (i = 0; i < 4; i++) {
@@ -390,17 +421,34 @@ int main(void)
 	ethernet_setup();
 	gpio_set_pdor(0x1, 0xA, 1);
 	start_kernel();
+#endif
 
-	while (0) {
+	while (1) {
+#ifdef S6E2CC
 		val = gpio_get_pdor(0xB, 0x2);
+#elif defined(MB9BF)
+		val = gpio_get_pdor(0x2, 0x7);
+#endif
 		if (val) {
+#ifdef S6E2CC
 			gpio_set_pdor(0xB, 0x2, 0);
 			gpio_set_pdor(0x1, 0x8, 1);
 			gpio_set_pdor(0x1, 0xA, 1);
+#elif defined(MB9BF)
+			gpio_set_pdor(0x2, 0x7, 0);
+			gpio_set_pdor(0x3, 0x8, 1);
+			gpio_set_pdor(0xE, 0x0, 1);
+#endif
 		} else {
+#ifdef S6E2CC
 			gpio_set_pdor(0xB, 0x2, 1);
 			gpio_set_pdor(0x1, 0x8, 0);
 			gpio_set_pdor(0x1, 0xA, 0);
+#elif defined(MB9BF)
+			gpio_set_pdor(0x2, 0x7, 1);
+			gpio_set_pdor(0x3, 0x8, 0);
+			gpio_set_pdor(0xE, 0x0, 0);
+#endif
 		}
 		for (i = 0; i < 10000000; i++) {
 			asm volatile ("nop");
