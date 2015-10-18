@@ -443,11 +443,19 @@ static void ethernet_setup(void)
 	}
 	gpio_set_epfr(14, 29, 0);
 
-	gpio_set_pfr(0x6, 0xA, 0);
-	gpio_set_ddr(0x6, 0xA, 1);
+	gpio_set_pfr(0x6, 0x5, 0);
+	gpio_set_ddr(0x6, 0x5, 1);
+	gpio_set_pdor(0x6, 0x5, 1);
 
+	// PHY nRST
+	gpio_set_pfr(0x6, 0xA, 0);
+	//gpio_set_ddr(0x6, 0xA, 1);
+	//gpio_set_pdor(0x6, 0xA, 1);
+
+	// LED
 	gpio_set_pfr(0x6, 0xE, 0);
-	gpio_set_ddr(0x6, 0xE, 1);
+	//gpio_set_ddr(0x6, 0xE, 1);
+	//gpio_set_pdor(0x6, 0xE, 1);
 }
 
 static void start_kernel(void)
