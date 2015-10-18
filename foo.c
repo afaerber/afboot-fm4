@@ -585,6 +585,7 @@ int main(void)
 
 static void noop(void)
 {
+	uart_putch('E');
 	while (1) {
 	}
 }
