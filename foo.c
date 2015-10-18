@@ -244,19 +244,32 @@ static inline void gpio_set_epfr(int regnr, int bit, uint8_t val)
 #define EXTIF_AREAx	(EXTIF_BASE + 0x040)
 #define EXTIF_ATIMx	(EXTIF_BASE + 0x060)
 
-#ifdef S6E2CC
 static void ebif_setup(void)
 {
 	volatile uint8_t *CGT_CKEN0_EXBCK  = (void *)(PERIPH_BITBAND(0x4003C100 + 0x0) + 26 * 4);
 	volatile uint8_t *CGT_MRST0_EXBRST = (void *)(PERIPH_BITBAND(0x4003C100 + 0x4) + 26 * 4);
+#ifdef S6E2CC
 	volatile uint32_t *MODE0 = (void *)(EXTIF_MODEx + 0 * 4);
 	volatile uint32_t *TIM0 = (void *)(EXTIF_TIMx + 0 * 4);
 	volatile uint32_t *AREA0 = (void *)(EXTIF_AREAx + 0 * 4);
 	volatile uint32_t *ATIM0 = (void *)(EXTIF_ATIMx + 0 * 4);
+#endif
+#ifdef MB9BF
+	volatile uint32_t *SDMODE = (void *)(EXTIF_BASE + 0x100);
+	volatile uint32_t *REFTIM = (void *)(EXTIF_BASE + 0x104);
+	volatile uint32_t *PWRDWN = (void *)(EXTIF_BASE + 0x108);
+	volatile uint32_t *SDTIM = (void *)(EXTIF_BASE + 0x10c);
+#endif
 	volatile uint32_t *DCLKR = (void *)(EXTIF_BASE + 0x300);
+#ifdef S6E2CC
 	volatile uint32_t *AMODE = (void *)(EXTIF_BASE + 0x310);
+#endif
+#ifdef MB9BF
+	uint32_t value;
+#endif
 	int i;
 
+#ifdef S6E2CC
 	// MAD10..MAD11
 	gpio_set_ade(14, 0);
 	gpio_set_ade(15, 0);
@@ -264,7 +277,18 @@ static void ebif_setup(void)
 	for (i = 24; i <= 29; i++) {
 		gpio_set_ade(i, 0);
 	}
+#elif defined(MB9BF)
+	// MAD07..MAD11
+	for (i = 0; i <= 4; i++) {
+		gpio_set_ade(i, 0);
+	}
+	// MAD14..MAD15
+	for (i = 7; i <= 8; i++) {
+		gpio_set_ade(i, 0);
+	}
+#endif
 
+#ifdef S6E2CC
 	// MWEX, MDQM1 and MDQM0, MOEX
 	for (i = 3; i <= 5; i++) {
 		gpio_set_epfr(10, i, 1);
@@ -277,7 +301,28 @@ static void ebif_setup(void)
 	for (i = 1; i <= 24; i++) {
 		gpio_set_epfr(11, i, 1);
 	}
+#elif defined(MB9BF)
+	// MDQCM1 and MDQCM0
+	gpio_set_epfr(10, 4, 1);
+	// MAD00, MAD08..MAD11
+	for (i = 14; i <= 18; i++) {
+		gpio_set_epfr(10, i, 1);
+	}
+	// MAD14..MAD15
+	for (i = 21; i <= 22; i++) {
+		gpio_set_epfr(10, i, 1);
+	}
+	// MAD01..MAD07, MADATA00..MADATA15
+	for (i = 2; i <= 24; i++) {
+		gpio_set_epfr(11, i, 1);
+	}
+	// MADCLK, MSDCKE, MRASX, MCASX, MSDWEX, MCSX8
+	for (i = 0; i <= 5; i++) {
+		gpio_set_epfr(20, i, 1);
+	}
+#endif
 
+#ifdef S6E2CC
 	// pins 21-22
 	gpio_set_pfr(0x0, 0x8, 1);
 	gpio_set_pfr(0x0, 0x9, 1);
@@ -310,21 +355,75 @@ static void ebif_setup(void)
 	for (i = 0x0; i <= 0xF; i++) {
 		gpio_set_pfr(0xA, i, 1);
 	}
+#elif defined(MB9BF)
+	// pins 92-93
+	for (i = 0xD; i <= 0xE; i++) {
+		gpio_set_pfr(0x0, i, 1);
+	}
+	// pins 62-66
+	for (i = 0x0; i <= 0x4; i++) {
+		gpio_set_pfr(0x1, i, 1);
+	}
+	// pins 69, 74
+	for (i = 0x7; i <= 0x8; i++) {
+		gpio_set_pfr(0x1, i, 1);
+	}
+	// pins 14-17
+	for (i = 0x0; i <= 0x3; i++) {
+		gpio_set_pfr(0x3, i, 1);
+	}
+	// pins 23-29
+	for (i = 0x9; i <= 0xF; i++) {
+		gpio_set_pfr(0x3, i, 1);
+	}
+	// pins 34-35
+	for (i = 0x2; i <= 0x3; i++) {
+		gpio_set_pfr(0x4, i, 1);
+	}
+	// pins 47-50
+	for (i = 0xB; i <= 0xE; i++) {
+		gpio_set_pfr(0x4, i, 1);
+	}
+	// pins 2-13
+	for (i = 0x0; i <= 0xB; i++) {
+		gpio_set_pfr(0x5, i, 1);
+	}
+#endif
 
 	*CGT_CKEN0_EXBCK = 0;
 	*CGT_MRST0_EXBRST = 1;
 	*CGT_MRST0_EXBRST = 0;
 	*CGT_CKEN0_EXBCK = 1;
 
+#ifdef S6E2CC
 	*MODE0 = (1 << 11) | (1 << 7) | (1 << 2) | (1 << 0); // MPXDOFF, SHRTDOUT, RBMON, 16-bit
-	*DCLKR = (1 << 4) | (3 << 0);
+	*DCLKR = (1 << 4) | ((4 - 1) << 0);
 	*TIM0 = ((1 - 1) << 28) | ((4 - 1) << 24) | ((1 - 1) << 20) | ((5 - 1) << 16) |
 	        ((1 - 1) << 12) | ((1 - 1) << 8) | (0 << 4) | ((4 - 1) << 0);
 	*AREA0 = (1 << 16) | (((0x60000000 >> 20) & 0xff) << 0);
 	*ATIM0 = ((1 - 1) << 8) | (0 << 4) | ((1 - 1) << 0);
 	*AMODE = 0;
+#elif defined(MB9BF)
+	*SDMODE |= (1 << 16);
+	*DCLKR = (0 << 4) | ((4 - 1) << 0);
+	while (*DCLKR & (1 << 4)) {}
+	*DCLKR |= (1 << 4);
+	while (!(*DCLKR & (1 << 4))) {}
+	*SDMODE &= ~(1 << 16);
+	value = *SDMODE;
+	value &= ~((0xf << 12) | (0xf << 8) | (3 << 4) | (1 << 2) | (1 << 1));
+	value |= (1 << 12) | (3 << 8) | (0 << 4) | (0 << 2) | (0 << 1);
+	*SDMODE = value;
+	*REFTIM = (0 << 24) | ((1 - 1) << 16) | ((52 - 1) << 0);
+	*PWRDWN = 0;
+	*SDTIM = ((1 - 1) << 24) | ((5 - 1) << 20) | ((3 - 1) << 16) | ((2 - 1) << 12) |
+	         ((2 - 1) << 8) | ((5 - 1) << 4) | ((2 - 1) << 0);
+	//*SDTIM |= 1u << 31; // BOFF
+	*SDMODE |= 1;
+#endif
 }
 
+#ifdef S6E2CC
 static void ethernet_setup(void)
 {
 	int i;
@@ -366,6 +465,10 @@ int main(void)
 	volatile uint32_t *psram32 = (void *)0x60000000;
 	//volatile uint8_t *psram8   = (void *)0x60000000;
 #endif
+#ifdef MB9BF
+	volatile uint32_t *sdram32 = (void *)0x70000000;
+	volatile uint8_t *sdram8 = (void *)0x70000000;
+#endif
 	uint8_t val;
 	int i;
 
@@ -406,8 +509,8 @@ int main(void)
 	uart_setup();
 	uart_putch('x');
 
-#ifdef S6E2CC
 	ebif_setup();
+#ifdef S6E2CC
 	/**psram32 = 0xdeadbeef;
 	for (i = 0; i < 4; i++) {
 		uint8_t val = psram8[i];
@@ -417,7 +520,21 @@ int main(void)
 	for (i = 0; i < 0x00200000 / sizeof(*psram32); i++) {
 		psram32[i] = 0;
 	}
+#elif defined(MB9BF)
+	sdram32[0] = 0xdeadbeef;
+	for (i = 0; i < 4; i++) {
+		uint8_t val = sdram8[i];
+		uart_putch(((val >> 4) > 9) ? 'A' + (val >> 4) - 0xA : '0' + (val >> 4));
+		uart_putch(((val & 0xf) > 9) ? 'A' + (val & 0xf) - 0xA : '0' + (val & 0xf));
+	}
+	for (i = 0; i < 0x01000000 / sizeof(*sdram32); i++) {
+		sdram32[i] = 0;
+		//if ((i % 1024) == 0)
+		//	uart_putch('.');
+	}
+#endif
 
+#ifdef S6E2CC
 	ethernet_setup();
 	gpio_set_pdor(0x1, 0xA, 1);
 	start_kernel();
