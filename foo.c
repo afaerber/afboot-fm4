@@ -457,6 +457,7 @@ static void ethernet_setup(void)
 	//gpio_set_ddr(0x6, 0xE, 1);
 	//gpio_set_pdor(0x6, 0xE, 1);
 }
+#endif
 
 static void start_kernel(void)
 {
@@ -465,7 +466,6 @@ static void start_kernel(void)
 
 	kernel(0, ~0UL, 0x00002000);
 }
-#endif
 
 int main(void)
 {
@@ -537,16 +537,19 @@ int main(void)
 	}
 	for (i = 0; i < 0x01000000 / sizeof(*sdram32); i++) {
 		sdram32[i] = 0;
-		//if ((i % 1024) == 0)
-		//	uart_putch('.');
 	}
 #endif
 
 #ifdef S6E2CC
 	ethernet_setup();
 	gpio_set_pdor(0x1, 0xA, 1);
-	start_kernel();
 #endif
+#ifdef MB9BF
+	gpio_set_pdor(0x2, 0x7, 1);
+	gpio_set_pdor(0x3, 0x8, 0);
+	gpio_set_pdor(0xE, 0x0, 1);
+#endif
+	start_kernel();
 
 	while (1) {
 #ifdef S6E2CC
